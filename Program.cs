@@ -38,8 +38,10 @@ namespace SazSorter
         static OptionSortingType userOptionSortingType = OptionSortingType.Default;
 
         static bool startSorting = false;
+        static bool overwriteFile = false;
 
         static int filesFoundOnScan = 0;
+        static int filesMovedOnSort = 0;
         static long totalFileSizeFoundOnScan = 0; // in bytes
 
         static string dirCurrent = Directory.GetCurrentDirectory();
@@ -75,10 +77,13 @@ namespace SazSorter
             UserSelectPrintSortingOptions();
             InitialDirectoryCheck();
             UserSelectScanFilesBeforeSorting();
-            UserSelectSortingType();
 
             if (filesFoundOnScan > 0)
+            {
+                UserSelectSortingType();
+                UserSelectOverwrite();
                 UserSelectSortFiles();
+            }
             else
             {
                 WriteLineWithLogging("\nNo files found in: " + dirRandomFiles);
@@ -193,6 +198,31 @@ namespace SazSorter
             } while (true);
         }
 
+        static void UserSelectOverwrite()
+        {
+            do
+            {
+                WriteLineWithLogging("\nIf the current file being sorted has a duplicate name to the file in the sorted folder, what would you like to be done?");
+                WriteLineWithLogging("1 = Default: add a number prefix to the current file name. " +
+                    "\n        Example: Apple.jpeg --> 1_Apple.jpeg");
+                WriteLineWithLogging("2 = Overwrite: replaces the destination file with the current file.");
+
+                string usrAnswer = ReadLineWithLogging();
+                if (usrAnswer == "1")
+                {
+                    overwriteFile = false;
+                    break;
+                }
+                else if (usrAnswer == "2")
+                {
+                    overwriteFile = true;
+                    break;
+                }
+                else
+                    WriteLineWithLogging("Invalid option selected. Try again.");
+            } while (true);
+        }
+
         static void UserSelectSortFiles()
         {
             do
@@ -208,7 +238,8 @@ namespace SazSorter
                     WriteLineWithLogging("\n\n====SORTING STARTED====\n");
                     startSorting = true;
                     TraverseDirectory(new DirectoryInfo(dirRandomFiles));
-                    WriteLineWithLogging("\n====SORTING FINISHED====\n\n");
+                    WriteLineWithLogging("\n====SORTING FINISHED====\n");
+                    WriteLineWithLogging("Moved " + filesMovedOnSort + " out of " + filesFoundOnScan + "\n\n");
                     break;
                 }
                 else if (usrAnswer == "2")
@@ -312,6 +343,7 @@ namespace SazSorter
                     string dstSuffix = "\\" + file.Name;
                     string dstSuffixDupe = "\\" + fileSortSequenceOnDuplicate + "_" + file.Name;
                     string dstPath = dirSortedFiles;
+                    string percentageDone = "PROGRESS: " + ((float)filesMovedOnSort / (float)filesFoundOnScan * 100).ToString("00") + "% - ";
 
                     if (userOptionSortingType == OptionSortingType.Extension || userOptionSortingType == OptionSortingType.Alphabetically)
                     {
@@ -337,28 +369,30 @@ namespace SazSorter
                         if (applyDupePrefix)
                         {
                             fileSortSequenceOnDuplicate++;
-                            WriteLineWithLogging("(DUPLICATE! '" + fileSortSequenceOnDuplicate + "' PREFIX APPLIED) Copying'" + file.FullName + " to " + dstPath);
+                            WriteLineWithLogging(percentageDone + "(DUPLICATE! '" + fileSortSequenceOnDuplicate + "' PREFIX APPLIED) Copying'" + file.FullName + " to " + dstPath);
                         }
                         else
                         {
-                            WriteLineWithLogging("Copying '" + file.FullName + " to " + dstPath);
+                            WriteLineWithLogging(percentageDone + "Copying '" + file.FullName + " to " + dstPath);
                         }
 
-                        file.CopyTo(dstPath);
+                        file.CopyTo(dstPath, overwriteFile);
+                        filesMovedOnSort++;
                     }
                     else
                     {
                         if (applyDupePrefix)
                         {
                             fileSortSequenceOnDuplicate++;
-                            WriteLineWithLogging("(DUPLICATE! '" + fileSortSequenceOnDuplicate + "' PREFIX APPLIED) Moving'" + file.FullName + " to " + dstPath);
+                            WriteLineWithLogging(percentageDone + "(DUPLICATE! '" + fileSortSequenceOnDuplicate + "' PREFIX APPLIED) Moving'" + file.FullName + " to " + dstPath);
                         }
                         else
                         {
-                            WriteLineWithLogging("Moving '" + file.FullName + " to " + dstPath);
+                            WriteLineWithLogging(percentageDone + "Moving '" + file.FullName + " to " + dstPath);
                         }
 
-                        file.MoveTo(dstPath);
+                        file.MoveTo(dstPath, overwriteFile);
+                        filesMovedOnSort++;
                     }
                 }
                 catch
